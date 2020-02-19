@@ -87,7 +87,7 @@ class Leaf {
 public class Regular_Expression {
     String pattern;
     String lexical_component;
-    Stack<Node> elements, operators;
+    Stack<Node> elements ;
     int num_elements = 0;
     Node root;
     ArrayList<Leaf> follows;
@@ -95,13 +95,13 @@ public class Regular_Expression {
     ArrayList<Terminal> terminals;
     ArrayList<Transition> transitions;
     String txtfile;
+    boolean last;
     
     public Regular_Expression(String pattern, String lexical_comp)
     {
         this.lexical_component = lexical_comp;
         this.pattern = pattern;
         this.elements = new Stack();
-        this.operators = new Stack();
         this.root = new Node();
         this.follows = new ArrayList<>();
         this.nonterminals = new ArrayList<>();
@@ -111,54 +111,50 @@ public class Regular_Expression {
     
     public void generate_tree_expression()
     {
-        int size_pattern = pattern.length(), pointer = 0, initial_pointer = 0;
+        int size_pattern = 0, pointer = pattern.length() - 1, initial_pointer = 0;
         char actual;
+        last = false;
         
-            operators.addElement(new Node(".", 2));
+            elements.addElement(new Node("#", 0));
             while(true)
             {
                 actual = pattern.charAt(pointer);
                 switch (actual) {
-                    case '{':
-                        initial_pointer = pointer + 1;
-                        while(pattern.charAt(pointer) != '}')
-                            pointer++;
-                        elements.addElement(new Node(pattern.substring(initial_pointer, pointer), 0));
-                        num_elements++;
-                        insert_Nodes();
+                    case '}':
+                        initial_pointer = pointer;
+                        while(pattern.charAt(pointer) != '{')
+                            pointer--;
+                        elements.addElement(new Node(pattern.substring(pointer+1, initial_pointer), 0));
                         break;
                     case '+':
                     case '?':
                     case '*':
-                        operators.addElement(new Node(String.valueOf(actual), 1));
+                        elements.addElement(new Node(String.valueOf(actual), 1));
                         num_elements = 0;
+                        insert_Nodes();
                         break;
                     case '|':
                     case '.':
-                        operators.addElement(new Node(String.valueOf(actual), 2));
+                        elements.addElement(new Node(String.valueOf(actual), 2));
                         num_elements = 0;
+                        insert_Nodes();
                         break;
                     case '"':
-                        pointer++;
-                        initial_pointer = pointer;
+                        initial_pointer = pointer--;
                         while(pattern.charAt(pointer) != '"')
-                            pointer++;
-                        elements.addElement(new Node(pattern.substring(initial_pointer, pointer), 0));
-                        num_elements++;
-                        insert_Nodes();
+                            pointer--;
+                        elements.addElement(new Node(pattern.substring(pointer+1 , initial_pointer), 0));
                         break;
                     case ' ':
                         break;
                     default:
                         elements.addElement(new Node(String.valueOf(actual), 0));
-                        num_elements++;
                         insert_Nodes();
                 }
-                pointer++;
-                if(pointer == size_pattern)
+                pointer--;
+                if(pointer < size_pattern)
                 {
-                    elements.addElement(new Node("#", 0));
-                    num_elements = 2;
+                    elements.addElement(new Node(String.valueOf('.'), 2));
                     insert_Nodes();
                     this.root = elements.pop();
                     assing_number_leaf();
@@ -171,31 +167,21 @@ public class Regular_Expression {
     
     public void insert_Nodes()
     {
-        if(operators.isEmpty() || operators.lastElement().num_child != num_elements)
+        if(elements.isEmpty() || elements.lastElement().num_child < 1)
             return;
-        Node element = new Node();
-        if(operators.lastElement().num_child == num_elements && num_elements == 1)
+        Node element = elements.lastElement();
+        if(element.num_child <= elements.size() && element.num_child == 1)
         {
-            element = operators.pop();
+            element = elements.pop();
             element.left = elements.pop();
-        }else if(operators.lastElement().num_child == num_elements && num_elements == 2)
+        }else if(element.num_child <= elements.size() && element.num_child == 2)
         {
-            element = operators.pop();
+            element = elements.pop();
+            element.left = elements.pop();
             element.right = elements.pop();
-            element.left = elements.pop();
         }
-        
-        char operator = ' ';
-        if(!operators.isEmpty())
-            operator = operators.lastElement().data.charAt(0);
-        
-        if((operator == '.' || operator == '|') && !elements.isEmpty())
-            num_elements = 2;
-        else
-            num_elements = 1;
+                
         elements.addElement(element);
-        
-        insert_Nodes();
     }
 
     private void assing_number_leaf()
@@ -324,7 +310,7 @@ public class Regular_Expression {
 
                     //define lasts
                     for (int i = 0; i < pivot.left.lasts.size(); i++) {
-                        pivot.firsts.add(pivot.left.lasts.get(i));
+                        pivot.lasts.add(pivot.left.lasts.get(i));
                     }
                     
                     Collections.sort(pivot.firsts);
@@ -683,49 +669,55 @@ public class Regular_Expression {
     public void analize_lexeme(String lexeme)
     {
         String actual = transitions.get(0).origin;
-        boolean accept = true;
+        int ingreso = 0;
         for (int i = 0; i < lexeme.length(); i++) {
-            char character = lexeme.charAt(i);
-            
-            while (!aceptation(actual) || i != lexeme.length()-1) {                
-                if(actual.equals("no_match"))
+            ingreso = i;
+            for (int j = 0; j < transitions.size(); j++) {
+                if(transitions.get(j).origin.equals(actual))
                 {
-                    Init.panel.write_console("the expression: \"" + lexeme + " \" doesn't match with the regular expression: \"" + this.lexical_component + "\"");
-                    accept = false;
-                    break;
+                    
+                    String data2 = transitions.get(j).non_terminal;
+                    boolean set = verificate_sets(data2);
+                    if(set)
+                    {
+                        set = verificate_char(lexeme.charAt(i), data2);
+                        if(set)
+                        {
+                            i++;
+                            actual = transitions.get(j).destination;
+                            break;
+                        }
+                    }else
+                    {
+                        String data = lexeme.substring(i, i + transitions.get(j).non_terminal.length());
+                        if(data2.equals(data))
+                        {
+                            i = i + transitions.get(j).non_terminal.length();
+                            actual = transitions.get(j).destination;
+                            break;
+                        }
+                    }
                 }
-                else
-                {
-                    actual = verificate_transitions(actual, character);
-                    break;
-                }
+
             }
-            if(accept && i == lexeme.length()-1)
-                Init.panel.write_console("the expression: \"" + lexeme + " \" is valid for the expression: \"" + this.lexical_component + "\"");
-            else if(!accept)
-                break;
+            if(ingreso == i)
+            {
+                Init.panel.write_console("Error en la validacion del lexema: \""+ lexeme + "\" con la expresion regular: \"" + lexical_component + "\"");
+                return;
+            }
         }
+        if(aceptation(actual))
+            Init.panel.write_console("La validacion del lexema: \""+ lexeme + "\" fue exitosa con la expresion regular: \"" + lexical_component + "\"");
+    }
+    
+    private boolean verificate_sets(String lexical_c)
+    {
+        return Init.panel.verificate_if_set(lexical_c);
     }
     
     private boolean verificate_char(char actual, String nonterminal)
     {
         return Init.panel.verificate_char_in_set(nonterminal, actual);
-    }
-    
-    private String verificate_transitions(String origin, char character)
-    {
-        for (int j = 0; j < transitions.size(); j++) {
-            if(transitions.get(j).origin.equals(origin))
-            {
-                if(transitions.get(j).non_terminal.length() > 1)
-                {
-                    if(verificate_char(character, transitions.get(j).non_terminal))
-                        return transitions.get(j).destination;
-                }else if(transitions.get(j).non_terminal.charAt(0) == character)
-                    return transitions.get(j).destination;
-            }
-        }
-        return "no_match";
     }
     
     private boolean aceptation(String origin)

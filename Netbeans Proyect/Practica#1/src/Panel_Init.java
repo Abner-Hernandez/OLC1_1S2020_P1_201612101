@@ -411,7 +411,6 @@ public class Panel_Init extends javax.swing.JFrame {
         this.lexemes = new ArrayList<>();
         String content = input_field.getText();
         int size_content = content.length(), initial_pointer = index_lexemes, index = index_lexemes;
-        boolean exp_ini = false;
         String lexical = "";
 
         while(true)
@@ -426,15 +425,14 @@ public class Panel_Init extends javax.swing.JFrame {
                     initial_pointer = index + 1;
                     break;
                 case '"':
-                    if(!exp_ini)
+                    initial_pointer = ++index;
+                    while(content.charAt(index) != '"')
                     {
-                        initial_pointer = index + 1;
-                        exp_ini = true;
-                    }else
-                    {
-                        lexemes.add(new Expression(lexical,content.substring(initial_pointer, index)));
-                        exp_ini = false;
-                    }   
+                        index++;
+                    }
+                    String n = content.substring(initial_pointer, index);
+                    lexemes.add(new Expression(lexical,content.substring(initial_pointer, index)));
+
                     break;
                 case '\n':
                     initial_pointer = index + 1;
@@ -449,10 +447,6 @@ public class Panel_Init extends javax.swing.JFrame {
             index++;
             if(index == size_content)
                 break;
-        }
-        
-        for (Set set : sets) {
-            
         }
         
         //analize expressions
@@ -484,7 +478,7 @@ public class Panel_Init extends javax.swing.JFrame {
         Regular_Expression d = new Regular_Expression("", "");
         for (Regular_Expression rp : regular_expre) {
             if(rp.lexical_component.equals(lexical_component))
-                d = rp;
+                return rp;
         }
         return d;
     }
@@ -543,8 +537,17 @@ public class Panel_Init extends javax.swing.JFrame {
     public boolean verificate_char_in_set(String terminal, char character)
     {
         for (Set set : sets) {
-            if(set.lexical_component.endsWith(terminal))
+            if(set.lexical_component.equals(terminal))
                 return set.check_element(character);
+        }
+        return false;
+    }
+    
+    public boolean verificate_if_set(String lexical_component)
+    {
+        for (Set set : sets) {
+            if(set.lexical_component.equals(lexical_component))
+                return true;
         }
         return false;
     }

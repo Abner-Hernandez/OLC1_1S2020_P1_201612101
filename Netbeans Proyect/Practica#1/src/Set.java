@@ -28,22 +28,21 @@ public class Set {
         this.lexical_component = lexical_component;
     }
     
-    public boolean check_element(int element)
+    public boolean check_element(char element)
     {
-        boolean state = false;
         if(elements1 != null)
         {
             for (char data : elements1) {
-                //if(element == integer)
-                    //state = true;
+                if(element == data)
+                    return true;
             }
         }
         if(elements2 != null)
         {
             if(elements2.origin <= element && elements2.destiny >= element)
-                state = true;
+                return true;
         }
-        return state;
+        return false;
     }
     
     public void analize_pattern()
@@ -56,7 +55,13 @@ public class Set {
             {
                 elements1.add(pattern.charAt(i-1));
             }else if(character == '~')
+            {
                 elements2 = new Interval(pattern.charAt(i-1), pattern.charAt(i+1));
+                break;
+            }else if(i == pattern.length()-1)
+            {
+                elements1.add(pattern.charAt(i));
+            }
         }
     }
 }
